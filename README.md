@@ -1,20 +1,16 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# DevPlayground - Full-Stack Local IDE
 
-# Run and deploy your AI Studio app
+Interactive playground for full-stack development, database modeling, and terminal simulation.
 
-This contains everything you need to run your app locally.
+## Features
+- **Visual Database Designer**: Create ER diagrams and export DBML.
+- **SQL Console**: Simulate SQL queries on a virtual database.
+- **Backend Terminal**: Simulated shell environment.
+- **Frontend Explorer**: Real-time component visualization.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1F3t0gVwyKi5Go7W51na5X_D4ZIQnmTFD
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+## Setup
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Run the application:
    `npm run dev`
