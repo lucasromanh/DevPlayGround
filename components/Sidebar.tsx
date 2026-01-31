@@ -1,6 +1,8 @@
-
 import React from 'react';
 import { AppTab, DeployedProject } from '../types';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Card } from './ui/card';
 
 interface SidebarProps {
   activeTab: AppTab;
@@ -13,11 +15,11 @@ interface SidebarProps {
   onOpenWeb: (p: DeployedProject) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-  activeTab, 
-  setActiveTab, 
-  onNewProject, 
-  onOpenEnv, 
+const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  setActiveTab,
+  onNewProject,
+  onOpenEnv,
   onOpenTutorial,
   deployedProjects,
   onLoadProject,
@@ -34,18 +36,19 @@ const Sidebar: React.FC<SidebarProps> = ({
               { id: 'backend', icon: 'dns', label: 'Servidor (Backend)' },
               { id: 'database', icon: 'database', label: 'Base de Datos' },
             ].map(item => (
-              <button
+              <Button
                 key={item.id}
+                variant={activeTab === item.id ? "secondary" : "ghost"}
+                size="sm"
                 onClick={() => setActiveTab(item.id as AppTab)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
-                  activeTab === item.id 
-                    ? 'bg-primary/15 text-primary border border-primary/20' 
+                className={`justify-start gap-3 px-3 py-6 rounded-xl transition-all ${activeTab === item.id
+                    ? 'bg-primary/15 text-primary border border-primary/20 hover:bg-primary/20'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
                 <span className="text-[12px] font-bold">{item.label}</span>
-              </button>
+              </Button>
             ))}
           </nav>
         </div>
@@ -53,9 +56,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           <div className="flex items-center justify-between mb-3 px-2">
             <h3 className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Mis Proyectos</h3>
-            <span className="bg-slate-800 text-slate-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+            <Badge variant="secondary" className="bg-slate-800 text-slate-400 text-[9px] px-2 py-0.5 font-bold border-none">
               {deployedProjects.length}
-            </span>
+            </Badge>
           </div>
           <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 custom-scrollbar">
             {deployedProjects.length === 0 ? (
@@ -64,18 +67,18 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
             ) : (
               deployedProjects.map(proj => (
-                <div 
+                <Card
                   key={proj.id}
-                  className="group flex flex-col gap-1 p-2 bg-editor-dark/50 border border-slate-800 rounded-xl hover:border-primary/30 transition-all"
+                  className="group flex flex-col gap-1 p-2 bg-editor-dark/50 border-slate-800 rounded-xl hover:border-primary/30 transition-all cursor-default"
                 >
                   <div className="flex items-center justify-between">
-                    <span 
+                    <span
                       onClick={() => onLoadProject(proj)}
-                      className="text-[11px] font-bold text-slate-300 truncate cursor-pointer hover:text-primary"
+                      className="text-[11px] font-bold text-slate-300 truncate cursor-pointer hover:text-primary transition-colors"
                     >
                       {proj.name}
                     </span>
-                    <button 
+                    <button
                       onClick={() => onOpenWeb(proj)}
                       className="material-symbols-outlined text-slate-500 hover:text-primary text-[16px] transition-colors"
                     >
@@ -86,44 +89,48 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <span className="text-[8px] text-slate-600 font-mono">
                       {new Date(proj.timestamp).toLocaleDateString()}
                     </span>
-                    <span className="text-[8px] px-1.5 py-0.5 bg-primary/10 text-primary font-bold rounded uppercase">
+                    <Badge className="text-[8px] px-1.5 py-0 bg-primary/10 text-primary font-bold rounded uppercase border-none">
                       {proj.state.frontend.framework === 'Vanilla JS' ? 'JS' : 'React'}
-                    </span>
+                    </Badge>
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
         </div>
 
         <div className="pt-4 border-t border-slate-800/50">
-           <nav className="flex flex-col gap-1">
-            <button 
+          <nav className="flex flex-col gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onOpenEnv}
-              className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+              className="justify-start gap-3 px-3 py-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
             >
               <span className="material-symbols-outlined text-[18px]">tune</span>
               <span className="text-[11px] font-medium">Entorno (Env)</span>
-            </button>
-            <button 
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onOpenTutorial}
-              className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+              className="justify-start gap-3 px-3 py-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
             >
               <span className="material-symbols-outlined text-[18px]">help_center</span>
               <span className="text-[11px] font-medium">Ayuda Lucas</span>
-            </button>
-           </nav>
+            </Button>
+          </nav>
         </div>
       </div>
-      
+
       <div className="p-4 border-t border-slate-800 bg-black/10">
-        <button 
+        <Button
           onClick={onNewProject}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-slate-800 text-white rounded-xl text-[11px] font-bold hover:bg-primary transition-all border border-slate-700 hover:border-primary active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 py-6 bg-slate-800 text-white rounded-xl text-[11px] font-bold hover:bg-primary transition-all border border-slate-700 hover:border-primary active:scale-[0.98]"
         >
           <span className="material-symbols-outlined text-[16px]">add_circle</span>
           NUEVO PROYECTO
-        </button>
+        </Button>
       </div>
     </aside>
   );

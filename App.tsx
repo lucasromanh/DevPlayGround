@@ -35,13 +35,14 @@ const BOILERPLATE: ProjectState = {
   frontend: getVanillaBoilerplate(),
   backend: {
     runtime: 'Node.js',
-    routes: [
-      {
-        id: 'r1',
-        method: 'GET',
-        path: '/api/saludo',
-        handler: `(req, res, db) => {\n  return res.json({ mensaje: 'Hola desde el Backend de Lucas' });\n}`
-      }
+    activeFile: 'server.js',
+    files: {
+      'server.js': `// Servidor Principal\nconst port = 4000;\nconsole.log(\`Servidor corriendo en puerto \${port}\`);\n\n// Importamos lógica de rutas\nrequire('./routes.js');`,
+      'routes.js': `// Definición de Endpoints\n\n// GET /api/usuarios\nconst getUsuarios = (req, res, db) => {\n  const data = db.table('usuarios').find();\n  return res.json({ success: true, data });\n};\n\n// POST /api/usuarios\nconst createUsuario = (req, res, db) => {\n  const { nombre } = req.body;\n  const nuevo = db.table('usuarios').insert({ nombre });\n  return res.status(201).json(nuevo);\n};`
+    },
+    endpoints: [
+      { id: 'e1', method: 'GET', path: '/api/usuarios', handler: 'routes.js' },
+      { id: 'e2', method: 'POST', path: '/api/usuarios', handler: 'routes.js' }
     ]
   },
   database: {
@@ -64,8 +65,8 @@ const App: React.FC = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [deploying, setDeploying] = useState(false);
-  const [showDeployPopup, setShowDeployPopup] = useState<{show: boolean, name: string}>({show: false, name: ''});
-  
+  const [showDeployPopup, setShowDeployPopup] = useState<{ show: boolean, name: string }>({ show: false, name: '' });
+
   const [project, setProject] = useState<ProjectState>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : BOILERPLATE;
@@ -90,7 +91,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleNewProject = () => {
-    if(window.confirm('¿Borrar el editor actual? Los proyectos desplegados se mantendrán.')) {
+    if (window.confirm('¿Borrar el editor actual? Los proyectos desplegados se mantendrán.')) {
       setProject({ ...BOILERPLATE, id: 'proy-' + Date.now() });
       setActiveTab('frontend');
     }
@@ -107,94 +108,158 @@ const App: React.FC = () => {
       };
       setDeployedProjects(prev => [newDeployment, ...prev]);
       setDeploying(false);
-      setShowDeployPopup({show: true, name: project.name});
-      setTimeout(() => setShowDeployPopup({show: false, name: ''}), 6000);
+      setShowDeployPopup({ show: true, name: project.name });
+      setTimeout(() => setShowDeployPopup({ show: false, name: '' }), 6000);
     }, 1200);
   };
 
   const openStandalone = (proj: ProjectState) => {
     const { files, framework } = proj.frontend;
-    let content = `<html><head><title>${proj.name}</title><script src="https://cdn.tailwindcss.com"></script><style>${files['styles.css'] || ''}</style></head><body>${files['index.html'] || ''}<script>try { ${files['script.js'] || ''} } catch(e){ console.error(e); }</script></body></html>`;
+    let content = '';
+
+    if (framework === 'Vanilla JS') {
+      // Para Vanilla JS
+      let html = files['index.html'] || '';
+      html = html.replace(
+        /<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']\s*\/?\>/gi,
+        `<style>${files['styles.css'] || ''}</style>`
+      );
+      html = html.replace(
+        /<script\s+src=["']script\.js["']\s*><\/script>/gi,
+        `<script>try { ${files['script.js'] || ''} } catch(e){ console.error(e); }</script>`
+      );
+      content = `<!DOCTYPE html><html><head><title>${proj.name}</title></head><body>${html}</body></html>`;
+    } else if (framework === 'React v18.2') {
+      // Para React
+      let appCode = files['App.js'] || '';
+      appCode = appCode.replace(/import\s+.*?from\s+['"].*?['"];?\s*/g, '');
+      appCode = appCode.replace(/import\s+['"].*?['"];?\s*/g, '');
+      appCode = appCode.replace(/export\s+default\s+/g, '');
+
+      content = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${proj.name}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>${files['styles.css'] || ''}</style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  ${files['index.html'] || ''}
+  <script type="text/babel">
+    try { 
+      // Exponer React y hooks globalmente
+      const { useState, useEffect, useRef, useMemo, useCallback, useContext, useReducer } = React;
+      
+      ${appCode}
+      const root = ReactDOM.createRoot(document.getElementById('root')); 
+      root.render(<App />); 
+    } catch(e) { 
+      console.error(e); 
+    }
+  </script>
+</body>
+</html>`;
+    }
+
     const win = window.open('', '_blank');
     if (win) { win.document.open(); win.document.write(content); win.document.close(); }
   };
 
+  const [explorerVisible, setExplorerVisible] = useState(true);
+  const [moduleSidebarVisible, setModuleSidebarVisible] = useState(true);
+
   return (
     <div className="flex flex-col h-screen bg-background-dark overflow-hidden font-sans">
-      <Header 
-        project={project} 
-        onDeploy={handleDeploy} 
+      <Header
+        project={project}
+        onDeploy={handleDeploy}
         isDeploying={deploying}
-        onUpdateName={(name) => setProject(p => ({...p, name}))}
+        onUpdateName={(name) => setProject(p => ({ ...p, name }))}
+        explorerVisible={explorerVisible}
+        onToggleExplorer={() => setExplorerVisible(!explorerVisible)}
       />
-      
+
       <div className="flex flex-1 overflow-hidden relative">
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          onNewProject={handleNewProject}
-          onOpenEnv={() => setShowSettings(true)}
-          onOpenTutorial={() => setShowTutorial(true)}
-          deployedProjects={deployedProjects}
-          onLoadProject={(p) => {
-            if(window.confirm(`¿Cargar "${p.name}"?`)) {
-              setProject(p.state);
-              setActiveTab('frontend');
-            }
-          }}
-          onOpenWeb={(p) => openStandalone(p.state)}
-        />
-        
-        <main className="flex-1 overflow-hidden relative">
+        <div className={`transition-all duration-300 ease-in-out flex shrink-0 ${explorerVisible ? 'w-64' : 'w-0 overflow-hidden'}`}>
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onNewProject={handleNewProject}
+            onOpenEnv={() => setShowSettings(true)}
+            onOpenTutorial={() => setShowTutorial(true)}
+            deployedProjects={deployedProjects}
+            onLoadProject={(p) => {
+              if (window.confirm(`¿Cargar "${p.name}"?`)) {
+                setProject(p.state);
+                setActiveTab('frontend');
+              }
+            }}
+            onOpenWeb={(p) => openStandalone(p.state)}
+          />
+        </div>
+
+        <main className="flex-1 overflow-hidden relative flex flex-col">
           {activeTab === 'frontend' && (
-            <FrontendModule 
-              state={project.frontend} 
-              onUpdate={(updates) => setProject(p => ({...p, frontend: {...p.frontend, ...updates}}))} 
+            <FrontendModule
+              state={project.frontend}
+              onUpdate={(updates) => setProject(p => ({ ...p, frontend: { ...p.frontend, ...updates } }))}
               backendState={project.backend}
               dbState={project.database}
               env={project.envVariables}
+              sidebarVisible={moduleSidebarVisible}
+              onToggleSidebar={() => setModuleSidebarVisible(!moduleSidebarVisible)}
             />
           )}
           {activeTab === 'backend' && (
-            <BackendModule 
-              state={project.backend} 
-              onUpdate={(updates) => setProject(p => ({...p, backend: {...p.backend, ...updates}}))} 
+            <BackendModule
+              state={project.backend}
+              onUpdate={(updates) => setProject(p => ({ ...p, backend: { ...p.backend, ...updates } }))}
               dbState={project.database}
               env={project.envVariables}
+              sidebarVisible={moduleSidebarVisible}
+              onToggleSidebar={() => setModuleSidebarVisible(!moduleSidebarVisible)}
             />
           )}
           {activeTab === 'database' && (
-            <DatabaseModule 
-              state={project.database} 
-              onUpdate={(updates) => setProject(p => ({...p, database: {...p.database, ...updates}}))} 
+            <DatabaseModule
+              state={project.database}
+              onUpdate={(updates) => setProject(p => ({ ...p, database: { ...p.database, ...updates } }))}
+              sidebarVisible={moduleSidebarVisible}
+              onToggleSidebar={() => setModuleSidebarVisible(!moduleSidebarVisible)}
             />
           )}
 
           {showDeployPopup.show && (
             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[110] animate-in slide-in-from-bottom fade-in duration-300">
-               <div className="bg-sidebar-dark border border-primary/50 rounded-2xl shadow-2xl p-5 flex items-center gap-6 min-w-[400px]">
-                  <div className="size-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
-                    <span className="material-symbols-outlined text-2xl">check_circle</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-white font-bold">¡Proyecto Desplegado!</p>
-                    <p className="text-slate-400 text-xs">"{showDeployPopup.name}" está disponible en Mis Proyectos</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => openStandalone(project)}
-                      className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:brightness-110 shadow-lg shadow-primary/20"
-                    >
-                      ABRIR WEB
-                    </button>
-                    <button onClick={() => setShowDeployPopup({show: false, name: ''})} className="text-slate-600 hover:text-white transition-colors">
-                      <span className="material-symbols-outlined">close</span>
-                    </button>
-                  </div>
-               </div>
+              <div className="bg-sidebar-dark border border-primary/50 rounded-2xl shadow-2xl p-5 flex items-center gap-6 min-w-[400px]">
+                <div className="size-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
+                  <span className="material-symbols-outlined text-2xl">check_circle</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-bold">¡Proyecto Desplegado!</p>
+                  <p className="text-slate-400 text-xs">"{showDeployPopup.name}" está disponible en Mis Proyectos</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openStandalone(project)}
+                    className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:brightness-110 shadow-lg shadow-primary/20"
+                  >
+                    ABRIR WEB
+                  </button>
+                  <button onClick={() => setShowDeployPopup({ show: false, name: '' })} className="text-slate-600 hover:text-white transition-colors">
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </main>
+
 
         {showSettings && (
           <div className="absolute inset-0 z-[120] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto">
@@ -221,10 +286,10 @@ const App: React.FC = () => {
                         <span className="material-symbols-outlined text-slate-500">api</span>
                         Conectar Backend
                       </div>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={project.envVariables.CONNECT_BACKEND}
-                        onChange={(e) => setProject(p => ({...p, envVariables: {...p.envVariables, CONNECT_BACKEND: e.target.checked}}))}
+                        onChange={(e) => setProject(p => ({ ...p, envVariables: { ...p.envVariables, CONNECT_BACKEND: e.target.checked } }))}
                         className="size-5 accent-primary cursor-pointer"
                       />
                     </label>
@@ -233,10 +298,10 @@ const App: React.FC = () => {
                         <span className="material-symbols-outlined text-slate-500">database</span>
                         Conectar Base de Datos
                       </div>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={project.envVariables.CONNECT_DATABASE}
-                        onChange={(e) => setProject(p => ({...p, envVariables: {...p.envVariables, CONNECT_DATABASE: e.target.checked}}))}
+                        onChange={(e) => setProject(p => ({ ...p, envVariables: { ...p.envVariables, CONNECT_DATABASE: e.target.checked } }))}
                         className="size-5 accent-primary cursor-pointer"
                       />
                     </label>
@@ -249,28 +314,28 @@ const App: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="text-[9px] font-bold text-slate-600 uppercase ml-1">Database Connection String</label>
-                      <input 
+                      <input
                         type="text"
                         value={project.envVariables.DATABASE_URL}
-                        onChange={(e) => setProject(p => ({...p, envVariables: {...p.envVariables, DATABASE_URL: e.target.value}}))}
+                        onChange={(e) => setProject(p => ({ ...p, envVariables: { ...p.envVariables, DATABASE_URL: e.target.value } }))}
                         className="w-full mt-1.5 bg-editor-dark border border-slate-800 p-3 rounded-xl text-xs font-mono text-primary outline-none focus:ring-1 focus:ring-primary/50"
                       />
                     </div>
                     <div>
                       <label className="text-[9px] font-bold text-slate-600 uppercase ml-1">API Endpoint URL</label>
-                      <input 
+                      <input
                         type="text"
                         value={project.envVariables.BACKEND_URL}
-                        onChange={(e) => setProject(p => ({...p, envVariables: {...p.envVariables, BACKEND_URL: e.target.value}}))}
+                        onChange={(e) => setProject(p => ({ ...p, envVariables: { ...p.envVariables, BACKEND_URL: e.target.value } }))}
                         className="w-full mt-1.5 bg-editor-dark border border-slate-800 p-3 rounded-xl text-xs font-mono text-primary outline-none focus:ring-1 focus:ring-primary/50"
                       />
                     </div>
                     <div>
                       <label className="text-[9px] font-bold text-slate-600 uppercase ml-1">API Key / Auth Token</label>
-                      <input 
+                      <input
                         type="password"
                         value={project.envVariables.API_KEY}
-                        onChange={(e) => setProject(p => ({...p, envVariables: {...p.envVariables, API_KEY: e.target.value}}))}
+                        onChange={(e) => setProject(p => ({ ...p, envVariables: { ...p.envVariables, API_KEY: e.target.value } }))}
                         className="w-full mt-1.5 bg-editor-dark border border-slate-800 p-3 rounded-xl text-xs font-mono text-emerald-400 outline-none focus:ring-1 focus:ring-primary/50"
                       />
                     </div>
@@ -279,7 +344,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="mt-12 pt-10 border-t border-slate-800 flex justify-end">
-                <button 
+                <button
                   onClick={() => setShowSettings(false)}
                   className="px-10 py-4 bg-primary text-white font-bold rounded-2xl hover:brightness-110 shadow-xl shadow-primary/20 transition-all active:scale-95"
                 >

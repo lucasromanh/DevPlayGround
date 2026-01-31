@@ -7,7 +7,7 @@ export interface CodeFiles {
   [key: string]: string;
 }
 
-export type Runtime = 'Node.js' | 'Python' | 'Java';
+export type Runtime = 'Node.js' | 'Python' | 'Java' | 'C' | 'C++';
 
 export interface BackendRoute {
   id: string;
@@ -20,6 +20,11 @@ export interface DbColumn {
   name: string;
   type: string;
   isPrimary?: boolean;
+  isForeignKey?: boolean;
+  references?: { table: string, column: string };
+  notNull?: boolean;
+  unique?: boolean;
+  autoIncrement?: boolean;
 }
 
 export interface DbTable {
@@ -27,6 +32,7 @@ export interface DbTable {
   name: string;
   columns: DbColumn[];
   rows: any[];
+  position?: { x: number, y: number };
 }
 
 export interface EnvVariables {
@@ -49,7 +55,9 @@ export interface ProjectState {
   };
   backend: {
     runtime: Runtime;
-    routes: BackendRoute[];
+    files: CodeFiles;
+    activeFile: string;
+    endpoints: BackendRoute[];
   };
   database: {
     tables: DbTable[];
