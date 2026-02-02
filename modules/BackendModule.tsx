@@ -75,23 +75,56 @@ const BackendModule: React.FC<BackendModuleProps> = ({
     }
   }, [terminalOutput]);
 
-  // Limpieza automática de archivos corruptos al cargar
-  useEffect(() => {
+  const handleNuclearClean = () => {
     let hasChanges = false;
     const newFiles = { ...safeFiles };
 
     Object.keys(newFiles).forEach(fileName => {
-      const code = newFiles[fileName];
-      if (code && (code.includes('text-') || code.includes('font-bold') || code.includes('class="') || code.includes('">'))) {
-        newFiles[fileName] = sanitizeCode(code);
+      const original = newFiles[fileName];
+      const cleaned = sanitizeCode(original);
+      if (cleaned !== original) {
+        newFiles[fileName] = cleaned;
         hasChanges = true;
       }
     });
 
     if (hasChanges) {
       onUpdate({ files: newFiles });
+      setTerminalOutput(prev => [...prev, { type: 'success', msg: '✨ ¡ARCHIVOS LIMPIADOS DE BASURA!', time: new Date().toLocaleTimeString() }]);
+    } else {
+      setTerminalOutput(prev => [...prev, { type: 'info', msg: 'El proyecto ya parece estar limpio.', time: new Date().toLocaleTimeString() }]);
     }
-  }, []);
+  };
+
+  // Limpieza automática de archivos corruptos
+  useEffect(() => {
+    let hasChanges = false;
+    const newFiles = { ...safeFiles };
+
+    Object.keys(newFiles).forEach(fileName => {
+      const original = newFiles[fileName];
+      // Detección sensible: si tiene text-, font-, span o carácteres huerfanos tipo ">
+      if (original && (
+        original.includes('text-') ||
+        original.includes('font-') ||
+        original.includes('">') ||
+        original.includes('">') ||
+        original.includes('<span') ||
+        original.includes('#"') ||
+        original.includes('&lt;')
+      )) {
+        const cleaned = sanitizeCode(original);
+        if (cleaned !== original) {
+          newFiles[fileName] = cleaned;
+          hasChanges = true;
+        }
+      }
+    });
+
+    if (hasChanges) {
+      onUpdate({ files: newFiles });
+    }
+  }, [state.files]);
 
   // Pantilla por defecto cuando cambia el runtime
   useEffect(() => {
@@ -229,17 +262,23 @@ const BackendModule: React.FC<BackendModuleProps> = ({
       engineRef.current = new BackendEngine(dbState.tables, env);
     }
     const engine = engineRef.current;
+
+    // SANITIZACIÓN FINAL ANTES DE ENVIAR
+    const originalCode = safeFiles[activeFile] || '';
+    const cleanCode = sanitizeCode(originalCode);
+
+    // Si hubo limpieza, actualizamos el archivo para que el usuario lo vea limpio
+    if (cleanCode !== originalCode) {
+      onUpdate({ files: { ...safeFiles, [activeFile]: cleanCode } });
+    }
+
     setIsSending(true);
 
     const pushLog = (log: any) => {
       setTerminalOutput(prev => [...prev, log]);
     };
 
-    if (state.runtime === 'Python') {
-      pushLog({ type: 'info', msg: `> Iniciando Runtime de Python 3.11...`, time: new Date().toLocaleTimeString() });
-    } else {
-      pushLog({ type: 'info', msg: `> Iniciando Runtime de ${state.runtime}...`, time: new Date().toLocaleTimeString() });
-    }
+    pushLog({ type: 'info', msg: `> Iniciando Runtime de ${state.runtime}...`, time: new Date().toLocaleTimeString() });
 
     try {
       pushLog({ type: 'info', msg: `> Ejecutando archivo: ${activeFile}...`, time: new Date().toLocaleTimeString() });
@@ -248,7 +287,7 @@ const BackendModule: React.FC<BackendModuleProps> = ({
         id: 'run',
         method: 'GET',
         path: '/run',
-        handler: sanitizeCode(safeFiles[activeFile] || '')
+        handler: cleanCode
       };
 
       const result = await engine.executeRoute(mockRoute, {}, {},
@@ -470,9 +509,14 @@ const BackendModule: React.FC<BackendModuleProps> = ({
         <div className="p-4 flex flex-col flex-1 overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Explorador</h3>
-            <Button variant="ghost" size="sm" onClick={handleCreateFile} className="h-6 w-6 p-0 hover:bg-slate-800 text-slate-400">
-              <span className="material-symbols-outlined text-[16px]">add_box</span>
-            </Button>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={handleNuclearClean} title="Limpieza Nuclear de Archivos" className="h-6 w-6 p-0 hover:bg-slate-800 text-slate-400 hover:text-primary">
+                <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleCreateFile} className="h-6 w-6 p-0 hover:bg-slate-800 text-slate-400">
+                <span className="material-symbols-outlined text-[16px]">add_box</span>
+              </Button>
+            </div>
           </div>
           <ScrollArea className="flex-1 -mr-2 pr-2">
             <div className="space-y-0.5">
@@ -526,30 +570,43 @@ const BackendModule: React.FC<BackendModuleProps> = ({
           {activeView === 'editor' ? (
             <div className="flex-1 flex overflow-hidden">
               <div style={{ width: `${splitWidth}%` }} className="h-full relative flex overflow-hidden font-mono bg-[#010409] border-r border-slate-800">
-                <ScrollArea className="w-10 bg-sidebar-dark/10 border-r border-slate-800/50 py-4 select-none shrink-0 pointer-events-none">
-                  <div className="flex flex-col items-center text-[9px] font-mono text-slate-700">
-                    {Array.from({ length: 150 }).map((_, i) => <span key={i} className="h-5 leading-relaxed">{i + 1}</span>)}
+                <ScrollArea className="w-12 bg-sidebar-dark/10 border-r border-slate-800/50 py-6 select-none shrink-0 scrollbar-hide">
+                  <div className="flex flex-col items-center font-mono text-slate-700 text-[11px] leading-[1.5rem]">
+                    {(safeFiles[activeFile] || '').split('\n').map((_, i) => (
+                      <span key={i} className="h-[1.5rem] flex items-center">{i + 1}</span>
+                    ))}
                   </div>
                 </ScrollArea>
                 <div className="relative flex-1 overflow-hidden">
-                  <pre ref={preRef} className="absolute inset-0 p-6 m-0 text-[13px] whitespace-pre-wrap break-all leading-relaxed z-0 text-slate-300 pointer-events-none overflow-hidden" dangerouslySetInnerHTML={{ __html: highlightText(safeFiles[activeFile] || '', activeFile) }} />
+                  <pre
+                    ref={preRef}
+                    className="absolute inset-0 p-6 m-0 text-[13px] whitespace-pre leading-[1.5rem] z-0 text-slate-300 pointer-events-none overflow-hidden border-none"
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      boxSizing: 'border-box'
+                    }}
+                    dangerouslySetInnerHTML={{ __html: highlightText(safeFiles[activeFile] || '', activeFile) + '\n' }}
+                  />
                   <textarea
                     ref={textareaRef}
                     value={safeFiles[activeFile] || ''}
                     onScroll={handleScroll}
                     onChange={(e) => {
                       const newCode = e.target.value;
-                      // Si detectamos que se inyectaron clases CSS, sanitizamos inmediatamente
-                      if (newCode.includes('text-') || newCode.includes('font-') || newCode.includes('<span')) {
+                      // Si detectamos patrones de corrupción masiva, sanitizamos
+                      if (newCode.includes('class="text-') || newCode.includes('font-bold">')) {
                         const cleaned = sanitizeCode(newCode);
                         onUpdate({ files: { ...safeFiles, [activeFile]: cleaned } });
                       } else {
                         onUpdate({ files: { ...safeFiles, [activeFile]: newCode } });
                       }
                     }}
-                    className="absolute inset-0 w-full h-full p-6 bg-transparent border-none outline-none text-[13px] font-mono text-transparent caret-primary resize-none leading-relaxed z-10 whitespace-pre-wrap break-all"
+                    className="absolute inset-0 w-full h-full p-6 bg-transparent border-none outline-none text-[13px] font-mono text-transparent caret-primary resize-none leading-[1.5rem] z-10 whitespace-pre overflow-auto"
                     spellCheck={false}
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
               </div>
