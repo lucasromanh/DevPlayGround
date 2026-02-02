@@ -75,6 +75,24 @@ const BackendModule: React.FC<BackendModuleProps> = ({
     }
   }, [terminalOutput]);
 
+  // Limpieza automática de archivos corruptos al cargar
+  useEffect(() => {
+    let hasChanges = false;
+    const newFiles = { ...safeFiles };
+
+    Object.keys(newFiles).forEach(fileName => {
+      const code = newFiles[fileName];
+      if (code && (code.includes('text-') || code.includes('font-bold') || code.includes('class="') || code.includes('">'))) {
+        newFiles[fileName] = sanitizeCode(code);
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      onUpdate({ files: newFiles });
+    }
+  }, []);
+
   // Pantilla por defecto cuando cambia el runtime
   useEffect(() => {
     const runtimeFiles: Record<string, { name: string, code: string }> = {
@@ -98,26 +116,30 @@ const BackendModule: React.FC<BackendModuleProps> = ({
       preRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
   };
-
   const highlightText = (code: string, fileName: string) => {
     if (!code) return '';
-    // Python
+    // Escapar caracteres HTML básicos primero para evitar inyectar tags reales
+    let escapedCode = code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
     if (fileName.endsWith('.py')) {
-      return code
+      return escapedCode
         .replace(/\b(def|class|if|else|elif|for|while|return|import|from|as|try|except|finally|with|await|async|print|input)\b/g, '<span class="text-purple-400 font-bold">$1</span>')
         .replace(/\b(self|None|True|False)\b/g, '<span class="text-orange-400">$1</span>')
         .replace(/(['"])(.*?)\1/g, '<span class="text-emerald-400">"$2"</span>')
         .replace(/#.*/g, '<span class="text-slate-600">$&</span>')
         .replace(/\b(\w+)(?=\()/g, '<span class="text-blue-400 font-bold">$1</span>');
     }
-    // C / C++ / Java / JS
+
     const isCpp = fileName.endsWith('.cpp') || fileName.endsWith('.hpp') || fileName.endsWith('.cc');
     const isC = fileName.endsWith('.c') || fileName.endsWith('.h');
     const isJava = fileName.endsWith('.java');
     const isJS = fileName.endsWith('.js') || fileName.endsWith('.ts');
 
     if (isCpp || isC || isJava || isJS) {
-      let highlighted = code
+      let highlighted = escapedCode
         .replace(/\b(const|let|var|function|return|if|else|for|while|import|export|from|async|await|try|catch|finally|null|undefined|true|false|public|private|protected|class|static|void|int|float|double|char|long|bool|if|else|switch|case|break|continue|new|delete|this|try|throw|catch|using|namespace|include|struct|template|virtual|override|final)\b/g, '<span class="text-purple-400 font-bold">$1</span>')
         .replace(/(['"`])(.*?)\1/g, '<span class="text-emerald-400">"$2"</span>')
         .replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '<span class="text-slate-600">$&</span>');
@@ -126,13 +148,13 @@ const BackendModule: React.FC<BackendModuleProps> = ({
         highlighted = highlighted.replace(/\b(System|String|Object|Integer|List|ArrayList|Map|HashMap)\b/g, '<span class="text-yellow-400">$1</span>');
       }
       if (isCpp || isC) {
-        highlighted = highlighted.replace(/#include\s+<.*?>/g, '<span class="text-orange-400">$&</span>');
+        highlighted = highlighted.replace(/#include\s+&lt;.*?&gt;/g, '<span class="text-orange-400">$&</span>');
         highlighted = highlighted.replace(/\b(std|cout|cin|endl|printf|scanf)\b/g, '<span class="text-blue-400">$1</span>');
       }
       return highlighted;
     }
 
-    return code;
+    return escapedCode;
   };
 
   const handleCreateFile = () => {
@@ -515,7 +537,16 @@ const BackendModule: React.FC<BackendModuleProps> = ({
                     ref={textareaRef}
                     value={safeFiles[activeFile] || ''}
                     onScroll={handleScroll}
-                    onChange={(e) => onUpdate({ files: { ...safeFiles, [activeFile]: e.target.value } })}
+                    onChange={(e) => {
+                      const newCode = e.target.value;
+                      // Si detectamos que se inyectaron clases CSS, sanitizamos inmediatamente
+                      if (newCode.includes('text-') || newCode.includes('font-') || newCode.includes('<span')) {
+                        const cleaned = sanitizeCode(newCode);
+                        onUpdate({ files: { ...safeFiles, [activeFile]: cleaned } });
+                      } else {
+                        onUpdate({ files: { ...safeFiles, [activeFile]: newCode } });
+                      }
+                    }}
                     className="absolute inset-0 w-full h-full p-6 bg-transparent border-none outline-none text-[13px] font-mono text-transparent caret-primary resize-none leading-relaxed z-10 whitespace-pre-wrap break-all"
                     spellCheck={false}
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}

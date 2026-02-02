@@ -3,27 +3,41 @@ export const sanitizeCode = (code: string): string => {
 
     let clean = code;
 
-    // 1. Eliminar específicamente los tags de span inyectados por nuestro resaltador
-    // Buscamos <span class="text-..."> y </span>
-    clean = clean.replace(/<span class="text-[^"]*">/g, '');
-    clean = clean.replace(/<\/span>/g, '');
-
-    // 2. Si por algún motivo quedaron clases como texto literal (error de regex anterior)
-    clean = clean.replace(/text-[a-z0-9-]+/g, '');
-    clean = clean.replace(/font-bold/g, '');
-    clean = clean.replace(/font-mono/g, '');
-
-    // 3. Decodificar entidades HTML básicas que el navegador/editor pudiera haber convertido
+    // 1. Decodificar entidades HTML primero para que los tags sean reales
     const entities: Record<string, string> = {
         '&lt;': '<',
         '&gt;': '>',
         '&quot;': '"',
         '&#39;': "'",
-        '&amp;': '&'
+        '&amp;': '&',
+        '&nbsp;': ' '
     };
 
     Object.keys(entities).forEach(entity => {
         clean = clean.split(entity).join(entities[entity]);
+    });
+
+    // 2. Eliminar tags HTML completos (como <span>...</span>)
+    clean = clean.replace(/<[^>]+>/g, '');
+
+    // 3. Eliminar fragmentos literales que el resaltador pudo haber inyectado accidentalmente
+    const fragmentsToRemove = [
+        /text-[a-z0-9-]+/g,
+        /font-bold/g,
+        /font-mono/g,
+        /class="[^"]*"/g,
+        /class='[^']*'/g,
+        /style="[^"]*"/g,
+        /style='[^']*'/g,
+        /<span>/g,
+        /<\/span>/g,
+        /[a-z-]+="[^"]*">/g, // Atributos huerfanos como class="foo">
+        /">/g,
+        /'>/g
+    ];
+
+    fragmentsToRemove.forEach(re => {
+        clean = clean.replace(re, '');
     });
 
     return clean;

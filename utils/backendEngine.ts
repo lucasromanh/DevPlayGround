@@ -327,30 +327,37 @@ export class BackendEngine {
     private async initPyWorker(): Promise<void> {
         if (this.pyWorker) return;
 
-        // Crear el buffer compartido (64KB para comunicación)
-        this.sharedBuffer = new SharedArrayBuffer(65536);
+        const hasSAB = typeof SharedArrayBuffer !== 'undefined';
 
-        // Cargar el worker (usamos un path relativo al root o public si es necesario)
-        // En Vite, podemos importar el worker directamente o usar URL
+        if (hasSAB) {
+            // Crear el buffer compartido (64KB para comunicación)
+            this.sharedBuffer = new SharedArrayBuffer(65536);
+        }
+
+        // Cargar el worker
         this.pyWorker = new Worker(new URL('./pyWorker.js', import.meta.url));
 
-        return new Promise((resolve) => {
-            if (!this.pyWorker) return;
+        return new Promise((resolve, reject) => {
+            if (!this.pyWorker) return reject(new Error("No se pudo crear el Worker"));
 
             this.pyWorker.onmessage = (e) => {
-                const { type, data, prompt, message } = e.data;
+                const { type, prompt } = e.data;
 
                 if (type === 'ready') {
                     this.pyWorkerReady = true;
                     resolve();
                 } else if (type === 'stdin_request') {
-                    // El worker está bloqueado esperando que escribamos en el buffer
                     if (this.onInputRequestCallback) {
                         this.onInputRequestCallback(prompt || '').then(val => {
                             this.sendInputToWorker(val);
                         });
                     }
                 }
+            };
+
+            this.pyWorker.onerror = (err) => {
+                console.error("Worker error:", err);
+                reject(err);
             };
 
             this.pyWorker.postMessage({
