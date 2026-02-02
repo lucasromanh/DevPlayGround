@@ -1,0 +1,31 @@
+# DevPlayground - Product Requirement Document (PRD)
+
+## Project Overview
+DevPlayground is an interactive full-stack development environment designed for rapid prototyping and education. It allows users to manage Frontend, Backend, and Database structures in a single integrated interface.
+
+## Core Modules & Features
+
+### 1. Database Module (CRITICAL FOR TESTING)
+- **Visual Designer**: An ER diagram canvas where users can drag and drop table cards.
+- **Relationship Lines**: Visual connections between tables (Foreign Keys) that update dynamically.
+- **SQL Console**: A simulated SQL engine supporting multi-statement execution (SELECT, INSERT, UPDATE, DELETE, ALTER, DROP).
+- **Data Explorer**: A tabular view to browse and edit row data directly.
+- **DBML Integration**: Bi-directional sync between visual design and DBML code.
+
+### 2. Backend Module
+- **Endpoint Manager**: Definition of API routes (GET, POST).
+- **Server Logs**: Real-time simulation of server activity and request handling.
+- **Environment Variables**: Management of system-wide constants.
+
+### 3. Frontend Module
+- **Code Editor**: Real-time editor for HTML, CSS, and JS.
+- **Live Preview**: An isolated iframe rendering the frontend code.
+
+## User Persona
+Developers and students looking to visualize system architecture and test SQL logic without local database overhead.
+
+## Success Criteria for Testing
+- Tables can be repositioned on the diagram without errors.
+- SQL queries return valid JSON results in the terminal log.
+- Changing DBML code correctly updates the visual table structure.
+- Navigation between "Visual Designer" and "Data Explorer" is fluid.

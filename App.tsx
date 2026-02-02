@@ -15,9 +15,62 @@ const getVanillaBoilerplate = (): ProjectState['frontend'] => ({
   framework: 'Vanilla JS',
   activeFile: 'index.html',
   files: {
-    'index.html': `<div id="root"></div>`,
-    'styles.css': `body { \n  margin: 0; \n  background: #0d1117; \n  color: white; \n  font-family: 'Inter', sans-serif; \n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100vh;\n}\n\n.card {\n  background: #161b22;\n  border: 1px solid #30363d;\n  padding: 40px;\n  border-radius: 20px;\n  box-shadow: 0 20px 50px rgba(0,0,0,0.6);\n  text-align: center;\n}\n\nh1 {\n  color: #13a4ec;\n  font-size: 3rem;\n  margin: 0;\n  letter-spacing: -1px;\n}`,
-    'script.js': `// Playground de Lucas Roman\nconst root = document.getElementById('root');\n\nroot.innerHTML = \`\n  <div class="card">\n    <h1>Hola Mundo</h1>\n    <p style="color: #8b949e; margin-top: 15px; font-size: 1.1rem;">Tu entorno de desarrollo está listo.</p>\n    <div style="margin-top: 30px; font-weight: 800; color: #58a6ff; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase;">Hecho por Lucas Roman</div>\n  </div>\n\`;`
+    'index.html': `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playground de Lucas Roman</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script src="script.js"></script>
+</body>
+</html>`,
+    'styles.css': `body { 
+  margin: 0; 
+  background: #0d1117; 
+  color: white; 
+  font-family: 'Inter', sans-serif; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  padding: 40px;
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  text-align: center;
+  border-top: 4px solid #13a4ec;
+}
+
+h1 {
+  color: #13a4ec;
+  font-size: 3rem;
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+p {
+  color: #8b949e;
+  margin-top: 15px;
+  font-size: 1.1rem;
+}`,
+    'script.js': `// Playground de Lucas Roman
+const root = document.getElementById('root');
+
+root.innerHTML = \`
+  <div class="card">
+    <h1>Hola Mundo</h1>
+    <p>Tu entorno de desarrollo está listo.</p>
+    <div style="margin-top: 30px; font-weight: 800; color: #58a6ff; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase;">Hecho con ❤️ por Lucas Roman</div>
+  </div>
+\`;`
   }
 });
 

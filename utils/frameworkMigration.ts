@@ -28,13 +28,15 @@ export function migrateVanillaToReact(files: CodeFiles): CodeFiles {
     bodyContent = bodyContent
         .replace(/class=/g, 'className=')
         .replace(/for=/g, 'htmlFor=')
+        .replace(/ref=["'][^"']*["']/g, '') // Eliminar posibles refs de string anteriores
         .replace(/<!--[\s\S]*?-->/g, ''); // Remover comentarios HTML
 
     // Agregar refs a los elementos que tienen ID y son usados en JS
     elementIds.forEach(id => {
+        const safeId = id.replace(/[^a-zA-Z0-9]/g, '_');
         bodyContent = bodyContent.replace(
             new RegExp(`(<[^>]+id=["']${id}["'][^>]*)(>)`, 'i'),
-            `$1 ref={${id}Ref}$2`
+            `$1 ref={${safeId}Ref}$2`
         );
     });
 
@@ -80,7 +82,9 @@ export function migrateReactToVanilla(files: CodeFiles): CodeFiles {
     htmlContent = htmlContent
         .replace(/className=/g, 'class=')
         .replace(/htmlFor=/g, 'for=')
-        .replace(/onClick=\{[^}]+\}/g, 'onclick="handleClick()"') // Simplificación
+        .replace(/ref=\{[^}]+\}/g, '') // Eliminar refs de React
+        .replace(/onClick=\{[^}]+\}/g, 'onclick="handleClick()"') // Simplificación de eventos
+        .replace(/\{\s*[^}]+\s*\}/g, '') // Eliminar cualquier otra expresión entre llaves
         .trim();
 
     // Crear HTML completo
@@ -134,7 +138,8 @@ function convertVanillaJSToReactHooks(js: string, elementIds: Set<string>): stri
     if (elementIds.size > 0) {
         hooks += '\n  // Referencias a elementos DOM\n';
         elementIds.forEach(id => {
-            hooks += `  const ${id}Ref = useRef<HTMLElement>(null);\n`;
+            const safeId = id.replace(/[^a-zA-Z0-9]/g, '_');
+            hooks += `  const ${safeId}Ref = useRef(null);\n`;
         });
     }
 
@@ -145,13 +150,14 @@ function convertVanillaJSToReactHooks(js: string, elementIds: Set<string>): stri
 
         // Reemplazar document.getElementById con refs
         elementIds.forEach(id => {
+            const safeId = id.replace(/[^a-zA-Z0-9]/g, '_');
             handlerBody = handlerBody.replace(
                 new RegExp(`(const|let|var)\\s+${id}\\s*=\\s*document\\.getElementById\\([^)]+\\);?`, 'g'),
                 ''
             );
             handlerBody = handlerBody.replace(
                 new RegExp(`\\b${id}\\b`, 'g'),
-                `${id}Ref.current`
+                `${safeId}Ref.current`
             );
         });
 
