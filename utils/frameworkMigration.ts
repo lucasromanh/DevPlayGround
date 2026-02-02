@@ -206,18 +206,30 @@ function extractJSXFromReact(appJs: string): string {
  * Convierte hooks de React a Vanilla JS
  */
 function convertReactToVanillaJS(appJs: string): string {
-    let vanillaCode = `// Código migrado desde React
-// NOTA: Puede requerir ajustes manuales
-
-`;
+    let stateVars: string[] = [];
+    let stateInit = '';
 
     // Detectar useState
     const stateMatches = appJs.matchAll(/const\s+\[(\w+),\s*set\w+\]\s*=\s*useState\(([^)]+)\)/g);
     for (const match of stateMatches) {
-        const varName = match[1];
-        const initialValue = match[2];
-        vanillaCode += `let ${varName} = ${initialValue};\n`;
+        stateVars.push(match[1]);
+        stateInit += `let ${match[1]} = ${match[2]};\n`;
     }
+
+    let vanillaCode = `// Código migrado desde React por Lucas Roman
+${stateInit}
+// Función para actualizar la interfaz
+function render() {
+  // NOTA: En Vanilla JS debes mapear tus variables al DOM manualmente
+  console.log('Referencia de estado:', { ${stateVars.join(', ')} });
+  
+  // Ejemplo: document.getElementById('mensaje').textContent = message;
+}
+
+// Ejecución inicial
+render();
+
+`;
 
     // Detectar handlers
     const handlerMatches = appJs.matchAll(/const\s+(\w+)\s*=\s*\([^)]*\)\s*=>\s*\{([^}]+)\}/g);
@@ -226,15 +238,19 @@ function convertReactToVanillaJS(appJs: string): string {
         const handlerBody = match[2];
         vanillaCode += `
 function ${handlerName}() {
-  ${handlerBody.replace(/set\w+\(/g, '/* actualizar estado: */')}
+  ${handlerBody.replace(/set\w+\(([^)]+)\)/g, (m, val) => {
+            const varName = stateVars.find(v => m.includes(`set${v.charAt(0).toUpperCase() + v.slice(1)}`));
+            return varName ? `${varName} = ${val}; render();` : 'render();';
+        })}
 }
 `;
     }
 
-    if (vanillaCode.trim() === '// Código migrado desde React\n// NOTA: Puede requerir ajustes manuales') {
+    if (!stateInit && !vanillaCode.includes('function')) {
         vanillaCode += `
 // TODO: Implementar lógica manualmente
-console.log('Aplicación iniciada');
+console.log('Playground de Lucas iniciado');
+document.getElementById('root').innerHTML = '<div class="card"><h1>¡Bienvenido!</h1><p>Edita el código para empezar.</p></div>';
 `;
     }
 

@@ -315,7 +315,6 @@ export default function App() {
 
       content = html;
     } else if (framework === 'React v18.2') {
-      // ... (React injection logic remains same or improved)
       let appCode = files['App.js'] || '';
       appCode = appCode.replace(/import\s+.*?from\s+['"].*?['"];?\s*/g, '');
       appCode = appCode.replace(/import\s+['"].*?['"];?\s*/g, '');
@@ -332,14 +331,17 @@ export default function App() {
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body>
+<body style="margin:0; background:#0d1117; color:white;">
   ${files['index.html'] || '<div id="root"></div>'}
   <script type="text/babel">
     try { 
       const { useState, useEffect, useRef, useMemo, useCallback, useContext, useReducer } = React;
       ${appCode}
-      const root = ReactDOM.createRoot(document.getElementById('root')); 
-      root.render(<App />); 
+      const rootElement = document.getElementById('root');
+      if (rootElement) {
+        const root = ReactDOM.createRoot(rootElement); 
+        root.render(<App />); 
+      }
     } catch(e) { 
       console.error(e); 
       window.parent.postMessage({type:'error', msg: e.message}, '*'); 
@@ -349,12 +351,7 @@ export default function App() {
 </html>`;
     }
 
-    const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(content);
-      doc.close();
-    }
+    iframeRef.current.srcdoc = content;
   };
 
   useEffect(() => {
