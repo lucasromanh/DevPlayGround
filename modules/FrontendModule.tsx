@@ -279,37 +279,46 @@ export default function App() {
     let content = '';
 
     if (framework === 'Vanilla JS') {
-      // Para Vanilla JS: tomar el HTML completo y reemplazar las referencias a archivos
       let html = files['index.html'] || '';
+      const css = files['styles.css'] || '';
+      const js = files['script.js'] || '';
 
-      // Reemplazar <link rel="stylesheet" href="styles.css"> con el CSS inline
-      html = html.replace(
-        /<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']\s*\/?>/gi,
-        `<style>${files['styles.css'] || ''}</style>`
-      );
+      // Limpiar etiquetas existentes para evitar duplicados si el usuario las puso
+      html = html.replace(/<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']\s*\/?>/gi, '');
+      html = html.replace(/<script\s+src=["']script\.js["']\s*><\/script>/gi, '');
 
-      // Reemplazar <script src="script.js"></script> con el JS inline (con error handling)
-      html = html.replace(
-        /<script\s+src=["']script\.js["']\s*><\/script>/gi,
-        `<script>
-          try { 
-            ${files['script.js'] || ''} 
-          } catch(e) { 
-            console.error(e); 
-            window.parent.postMessage({type:'error', msg: e.message}, '*'); 
-          }
-        </script>`
-      );
+      // Inyectar CSS en el head o al principio
+      const styleTag = `<style>${css}</style>`;
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', `${styleTag}</head>`);
+      } else if (html.includes('<head>')) {
+        html = html.replace('<head>', `<head>${styleTag}`);
+      } else {
+        html = styleTag + html;
+      }
+
+      // Inyectar JS al final del body o al final del documento
+      const scriptTag = `<script>
+        try { 
+          ${js} 
+        } catch(e) { 
+          console.error(e); 
+          window.parent.postMessage({type:'error', msg: e.message}, '*'); 
+        }
+      </script>`;
+
+      if (html.includes('</body>')) {
+        html = html.replace('</body>', `${scriptTag}</body>`);
+      } else {
+        html = html + scriptTag;
+      }
 
       content = html;
     } else if (framework === 'React v18.2') {
-      // Para React: construir desde cero con CDN
-      // Limpiar imports y exports del código de App.js
+      // ... (React injection logic remains same or improved)
       let appCode = files['App.js'] || '';
-      // Remover todas las variaciones de import
       appCode = appCode.replace(/import\s+.*?from\s+['"].*?['"];?\s*/g, '');
       appCode = appCode.replace(/import\s+['"].*?['"];?\s*/g, '');
-      // Remover export default si existe
       appCode = appCode.replace(/export\s+default\s+/g, '');
 
       content = `<!DOCTYPE html>
@@ -324,12 +333,10 @@ export default function App() {
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-  ${files['index.html'] || ''}
+  ${files['index.html'] || '<div id="root"></div>'}
   <script type="text/babel">
     try { 
-      // Exponer React y hooks globalmente
       const { useState, useEffect, useRef, useMemo, useCallback, useContext, useReducer } = React;
-      
       ${appCode}
       const root = ReactDOM.createRoot(document.getElementById('root')); 
       root.render(<App />); 
